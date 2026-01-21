@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Duluth Ship Tracker Setup",
+        "description": "Configure Duluth Harbor ship tracking and notifications",
+        "data": {
+          "announcement_time": "Daily announcement time (HH:MM)",
+          "warning_minutes": "Warning time before arrival/departure (minutes)",
+          "tts_service": "TTS service to use"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to Harbor Lookout API"
+    },
+    "abort": {
+      "already_configured": "Duluth Ship Tracker is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Duluth Ship Tracker Options",
+        "description": "Configure announcement and notification settings",
+        "data": {
+          "announcement_time": "Daily announcement time (HH:MM)",
+          "warning_minutes": "Warning time before arrival/departure (minutes)",
+          "tts_service": "TTS service to use"
+        }
+      }
+    }
+  }
+}

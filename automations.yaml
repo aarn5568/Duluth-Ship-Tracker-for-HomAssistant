@@ -1,0 +1,101 @@
+# Example automations for Duluth Ship Tracker
+# Copy these to your Home Assistant automations.yaml file or add via the UI
+
+# Daily announcement of ships arriving and departing
+- id: duluth_daily_ship_announcement
+  alias: "Duluth Daily Ship Announcement"
+  description: "Announce daily ship schedule at 8 AM"
+  trigger:
+    - platform: time
+      at: "08:00:00"
+  condition:
+    - condition: or
+      conditions:
+        - condition: numeric_state
+          entity_id: sensor.duluth_arriving_ships
+          above: 0
+        - condition: numeric_state
+          entity_id: sensor.duluth_departing_ships
+          above: 0
+  action:
+    - service: script.duluth_announce_daily_schedule
+      data: {}
+
+# 15-minute warning before next ship arrival
+- id: duluth_ship_arrival_warning
+  alias: "Duluth Ship Arrival Warning"
+  description: "Notify 15 minutes before ship arrives"
+  trigger:
+    - platform: state
+      entity_id: sensor.duluth_next_arriving_ship
+      attribute: arrival_time
+  condition:
+    - condition: template
+      value_template: >
+        {% set arrival = state_attr('sensor.duluth_next_arriving_ship', 'arrival_time') %}
+        {% if arrival %}
+          {% set arrival_time = arrival | as_datetime %}
+          {% set time_until = (arrival_time - now()).total_seconds() / 60 %}
+          {{ time_until > 14 and time_until <= 16 }}
+        {% else %}
+          false
+        {% endif %}
+  action:
+    - service: notify.notify
+      data:
+        title: "Ship Arriving Soon"
+        message: >
+          {{ state_attr('sensor.duluth_next_arriving_ship', 'ship_name') }}
+          will arrive at Duluth Harbor in approximately 15 minutes.
+    - service: tts.google_translate_say
+      data:
+        entity_id: media_player.home
+        message: >
+          Attention: {{ state_attr('sensor.duluth_next_arriving_ship', 'ship_name') }}
+          is arriving at Duluth Harbor in approximately 15 minutes.
+
+# 15-minute warning before next ship departure
+- id: duluth_ship_departure_warning
+  alias: "Duluth Ship Departure Warning"
+  description: "Notify 15 minutes before ship departs"
+  trigger:
+    - platform: state
+      entity_id: sensor.duluth_next_departing_ship
+      attribute: departure_time
+  condition:
+    - condition: template
+      value_template: >
+        {% set departure = state_attr('sensor.duluth_next_departing_ship', 'departure_time') %}
+        {% if departure %}
+          {% set departure_time = departure | as_datetime %}
+          {% set time_until = (departure_time - now()).total_seconds() / 60 %}
+          {{ time_until > 14 and time_until <= 16 }}
+        {% else %}
+          false
+        {% endif %}
+  action:
+    - service: notify.notify
+      data:
+        title: "Ship Departing Soon"
+        message: >
+          {{ state_attr('sensor.duluth_next_departing_ship', 'ship_name') }}
+          will depart from Duluth Harbor in approximately 15 minutes.
+    - service: tts.google_translate_say
+      data:
+        entity_id: media_player.home
+        message: >
+          Attention: {{ state_attr('sensor.duluth_next_departing_ship', 'ship_name') }}
+          is departing from Duluth Harbor in approximately 15 minutes.
+
+# Time-based check for arrivals/departures (runs every minute)
+- id: duluth_check_ship_warnings
+  alias: "Duluth Check Ship Warnings"
+  description: "Check every minute for ships arriving/departing in 15 minutes"
+  trigger:
+    - platform: time_pattern
+      minutes: "/1"
+  action:
+    - service: script.duluth_check_arrival_warnings
+      data: {}
+    - service: script.duluth_check_departure_warnings
+      data: {}
