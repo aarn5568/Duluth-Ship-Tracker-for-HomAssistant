@@ -1,0 +1,135 @@
+# Example scripts for Duluth Ship Tracker
+# Copy these to your Home Assistant scripts.yaml file or add via the UI
+
+duluth_announce_daily_schedule:
+  alias: "Announce Daily Duluth Ship Schedule"
+  sequence:
+    - service: tts.google_translate_say
+      data:
+        entity_id: media_player.home
+        message: >
+          Good morning. Here is today's Duluth Harbor schedule.
+          {% set arriving = states('sensor.duluth_arriving_ships') | int %}
+          {% set departing = states('sensor.duluth_departing_ships') | int %}
+          {% set in_harbor = states('sensor.duluth_ships_in_harbor') | int %}
+
+          {% if arriving > 0 %}
+            {{ arriving }} ship{{ 's' if arriving > 1 else '' }} arriving today.
+            {% set ships = state_attr('sensor.duluth_arriving_ships_list', 'ships') %}
+            {% if ships %}
+              {% for ship in ships[:3] %}
+                {{ ship.name }}
+                {% if ship.arrival_time %}
+                  arriving at {{ ship.arrival_time | as_datetime | as_timestamp | timestamp_custom('%I:%M %p') }}.
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          {% endif %}
+
+          {% if departing > 0 %}
+            {{ departing }} ship{{ 's' if departing > 1 else '' }} departing today.
+            {% set ships = state_attr('sensor.duluth_departing_ships_list', 'ships') %}
+            {% if ships %}
+              {% for ship in ships[:3] %}
+                {{ ship.name }}
+                {% if ship.departure_time %}
+                  departing at {{ ship.departure_time | as_datetime | as_timestamp | timestamp_custom('%I:%M %p') }}.
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          {% endif %}
+
+          {% if in_harbor > 0 %}
+            {{ in_harbor }} ship{{ 's' if in_harbor > 1 else '' }} currently in harbor.
+          {% endif %}
+
+          {% if arriving == 0 and departing == 0 %}
+            No ships scheduled for arrival or departure today.
+          {% endif %}
+
+duluth_check_arrival_warnings:
+  alias: "Check for Duluth Ship Arrival Warnings"
+  sequence:
+    - condition: template
+      value_template: >
+        {{ state_attr('sensor.duluth_arriving_ships_list', 'ships') | length > 0 }}
+    - repeat:
+        for_each: "{{ state_attr('sensor.duluth_arriving_ships_list', 'ships') }}"
+        sequence:
+          - condition: template
+            value_template: >
+              {% set arrival = repeat.item.arrival_time %}
+              {% if arrival %}
+                {% set arrival_time = arrival | as_datetime %}
+                {% set minutes_until = (arrival_time - now()).total_seconds() / 60 %}
+                {{ minutes_until > 14 and minutes_until <= 16 }}
+              {% else %}
+                false
+              {% endif %}
+          - service: tts.google_translate_say
+            data:
+              entity_id: media_player.home
+              message: >
+                Attention: {{ repeat.item.name }} is arriving at Duluth Harbor in approximately 15 minutes.
+          - service: notify.notify
+            data:
+              title: "Ship Arriving Soon"
+              message: >
+                {{ repeat.item.name }} is arriving in approximately 15 minutes.
+
+duluth_check_departure_warnings:
+  alias: "Check for Duluth Ship Departure Warnings"
+  sequence:
+    - condition: template
+      value_template: >
+        {{ state_attr('sensor.duluth_departing_ships_list', 'ships') | length > 0 }}
+    - repeat:
+        for_each: "{{ state_attr('sensor.duluth_departing_ships_list', 'ships') }}"
+        sequence:
+          - condition: template
+            value_template: >
+              {% set departure = repeat.item.departure_time %}
+              {% if departure %}
+                {% set departure_time = departure | as_datetime %}
+                {% set minutes_until = (departure_time - now()).total_seconds() / 60 %}
+                {{ minutes_until > 14 and minutes_until <= 16 }}
+              {% else %}
+                false
+              {% endif %}
+          - service: tts.google_translate_say
+            data:
+              entity_id: media_player.home
+              message: >
+                Attention: {{ repeat.item.name }} is departing from Duluth Harbor in approximately 15 minutes.
+          - service: notify.notify
+            data:
+              title: "Ship Departing Soon"
+              message: >
+                {{ repeat.item.name }} is departing in approximately 15 minutes.
+
+duluth_ship_details:
+  alias: "Get Duluth Ship Details"
+  fields:
+    ship_name:
+      description: "Name of the ship to get details for"
+      example: "James R. Barker"
+  sequence:
+    - service: notify.notify
+      data:
+        title: "{{ ship_name }}"
+        message: >
+          {% set arriving = state_attr('sensor.duluth_arriving_ships_list', 'ships') %}
+          {% set departing = state_attr('sensor.duluth_departing_ships_list', 'ships') %}
+          {% set in_harbor = state_attr('sensor.duluth_ships_in_harbor_list', 'ships') %}
+
+          {% set all_ships = arriving + departing + in_harbor %}
+          {% set ship = all_ships | selectattr('name', 'eq', ship_name) | first | default(none) %}
+
+          {% if ship %}
+            Type: {{ ship.type }}
+            Cargo: {{ ship.cargo }}
+            Destination: {{ ship.destination }}
+            Status: {{ ship.status }}
+          {% else %}
+            Ship not found in current schedule.
+          {% endif %}
