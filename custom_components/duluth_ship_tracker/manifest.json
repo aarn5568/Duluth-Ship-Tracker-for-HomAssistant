@@ -1,0 +1,12 @@
+{
+  "domain": "duluth_ship_tracker",
+  "name": "Duluth Ship Tracker",
+  "codeowners": ["@aarn5568"],
+  "config_flow": true,
+  "documentation": "https://github.com/aarn5568/Duluth-Ship-Tracker-for-HomAssistant",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/aarn5568/Duluth-Ship-Tracker-for-HomAssistant/issues",
+  "requirements": ["aiohttp>=3.8.0"],
+  "version": "1.0.0"
+}
